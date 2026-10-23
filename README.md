@@ -27,7 +27,9 @@ Adminer: http://localhost:8082 (System: PostgreSQL, Server: db)
 
 ## CI pipeline
 
-.github/workflows/build-push.yml builds the image, scans it with Trivy, and pushes to Amazon ECR using GitHub OIDC, with no stored AWS keys. The IAM role is scoped to this repository and the main branch.
+`.github/workflows/build-push.yml` builds the image, scans it with Trivy, and pushes it to Amazon ECR tagged with the commit SHA. It authenticates with GitHub OIDC, so no AWS keys are stored anywhere: the IAM role trusts only this repository and the `main` branch. The pipeline runs green end to end, and the image tag in ECR matches the commit.
+
+Debugging note: the first runs failed with AccessDenied because the role's trust policy did not match GitHub's current OIDC subject, which now includes numeric owner and repository IDs. I found the real subject in CloudTrail (`AssumeRoleWithWebIdentity` events) and updated the trust policy.
 
 ## What I would improve
 
@@ -38,3 +40,8 @@ Adminer: http://localhost:8082 (System: PostgreSQL, Server: db)
 ## Clean up
 
     docker compose down -v
+
+## Related
+
+- [inventory-infra](https://github.com/fiehna-hue/inventory-infra): the same API deployed on ECS Fargate with Terraform.
+- [aws-platform-as-code](https://github.com/fiehna-hue/aws-platform-as-code): a full platform shipped through a plan-on-PR, apply-on-merge pipeline.
