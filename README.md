@@ -27,14 +27,16 @@ Adminer: http://localhost:8082 (System: PostgreSQL, Server: db)
 
 ## CI pipeline
 
-`.github/workflows/build-push.yml` builds the image, scans it with Trivy, and pushes it to Amazon ECR tagged with the commit SHA. It authenticates with GitHub OIDC, so no AWS keys are stored anywhere: the IAM role trusts only this repository and the `main` branch. The pipeline runs green end to end, and the image tag in ECR matches the commit.
+`.github/workflows/build-push.yml` runs the pytest integration tests against a Postgres service container, then builds the image (only if they pass), scans it with Trivy, and, on `main` only, pushes it to Amazon ECR tagged with the commit SHA. It authenticates with GitHub OIDC, so no AWS keys are stored anywhere: the IAM role trusts only this repository and the `main` branch. The pipeline runs green end to end, and the image tag in ECR matches the commit.
 
 Debugging note: the first runs failed with AccessDenied because the role's trust policy did not match GitHub's current OIDC subject, which now includes numeric owner and repository IDs. I found the real subject in CloudTrail (`AssumeRoleWithWebIdentity` events) and updated the trust policy.
+
+Second debugging note: the first run of the test job failed with `ModuleNotFoundError: No module named 'app'` because pytest did not have the repo root on its import path. Fix: a `pytest.ini` with `pythonpath = .`. The image build was skipped while the tests were red, which showed the gate working.
 
 ## What I would improve
 
 - Add a database connection timeout so failures return quickly
-- Add authentication, input validation, and automated tests
+- Add authentication and input validation (a POST without `name` currently returns a 500)
 - Pin the Trivy image and GitHub Actions versions
 
 ## Clean up
