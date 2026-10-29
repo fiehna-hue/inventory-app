@@ -45,3 +45,16 @@ Debugging note: the first runs failed with AccessDenied because the role's trust
 
 - [inventory-infra](https://github.com/fiehna-hue/inventory-infra): the same API deployed on ECS Fargate with Terraform.
 - [aws-platform-as-code](https://github.com/fiehna-hue/aws-platform-as-code): a full platform shipped through a plan-on-PR, apply-on-merge pipeline.
+
+## CI pipeline
+
+Every pull request and every push to `main` runs the `build-scan-push` workflow:
+
+1. **test**: starts a Postgres service container and runs the pytest integration tests against the real API.
+2. **build**: runs only if the tests pass. It builds the multi-stage, non-root Docker image.
+3. **scan**: Trivy scans the image and fails the build on fixable HIGH or CRITICAL vulnerabilities.
+4. **push** (only on `main`): authenticates to AWS with GitHub OIDC (no stored access keys) and pushes the image to ECR tagged with the commit SHA.
+
+### What broke while building it
+
+The first run of the test job failed with `ModuleNotFoundError: No module named 'app'`. The tests live in `tests/`, and pytest did not have the repo root on its import path. Fix: a `pytest.ini` with `pythonpath = .`. The failure also showed the gate working, because the image build was skipped when the tests failed.
